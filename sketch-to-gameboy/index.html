@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sketch to Game Boy</title>
+<meta name="description" content="How I made a Game Boy that projects games on the wall: one sketch per shot, Claude Opus 5.5, Blender. The full workflow with copyable prompts.">
+<meta property="og:title" content="Sketch to Game Boy: the OPUS guide">
+<meta property="og:description" content="How I made a Game Boy that projects games on the wall: one sketch per shot, Claude Opus 5.5, Blender. The full workflow with copyable prompts.">
+<meta property="og:image" content="https://fardeenafk.github.io/guides/sketch-to-gameboy/assets/og.jpg">
+<meta property="og:url" content="https://fardeenafk.github.io/guides/sketch-to-gameboy/">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fardeenafk.github.io/guides/sketch-to-gameboy/assets/og.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column like a game manual; shots table and prompt "cartridges" break out slightly wider. */
+:root{
+  --bg:#E4E1DA;          /* handheld casing grey */
+  --panel:#F3F1EC;
+  --ink:#24262C;
+  --muted:#5F6270;
+  --screen:#9BBC0F;      /* DMG screen green */
+  --screen-ink:#0F380F;
+  --accent:#A6245E;      /* A/B button magenta */
+  --line:#C9C5BC;
+  --display:'Anton','Impact','Arial Narrow',sans-serif;
+  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'Cascadia Mono',monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17181C;--panel:#212329;--ink:#ECEAE4;--muted:#A3A6B2;--screen:#8BAC0F;--screen-ink:#0F380F;--accent:#E0629A;--line:#34363E;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17181C;--panel:#212329;--ink:#ECEAE4;--muted:#A3A6B2;--screen:#8BAC0F;--screen-ink:#0F380F;--accent:#E0629A;--line:#34363E;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.62;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 72px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+header{display:flex;flex-direction:column;gap:14px}
+.kicker{font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(52px,11vw,96px);line-height:.95;margin:0;letter-spacing:.01em;text-wrap:balance}
+h1 span{color:var(--accent)}
+.lede{font-size:19px;color:var(--ink);max-width:60ch;margin:0}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.tools li{font-family:var(--mono);font-size:13px;padding:5px 11px;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
+section{display:flex;flex-direction:column;gap:14px}
+h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1.05;margin:0;letter-spacing:.02em;text-wrap:balance}
+h2 small{display:block;font-family:var(--mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+p{margin:0;max-width:65ch}
+ul.points{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.screen{background:var(--screen);color:var(--screen-ink);border-radius:6px;padding:18px 20px;box-shadow:inset 0 0 0 6px rgba(15,56,15,.18)}
+.screen p{font-family:var(--mono);font-size:15px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.t{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.note{font-family:var(--mono);color:var(--accent)}
+tr:last-child td{border-bottom:0}
+.prompt{background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column}
+.prompt-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.prompt-head span{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.prompt pre{margin:0;padding:14px;font-family:var(--mono);font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+button.copy{font-family:var(--mono);font-size:13px;border:0;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;cursor:pointer}
+button.copy:focus-visible{outline:3px solid var(--screen);outline-offset:2px}
+.check{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:baseline}
+.check b{font-family:var(--mono);font-size:13px;color:var(--accent);white-space:nowrap}
+footer{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:20px}
+@media (max-width:480px){h2{font-size:28px}body{font-size:16px}}
+.film{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.film video{width:min(100%,360px);aspect-ratio:9/16;border-radius:10px;background:#000;box-shadow:0 18px 40px rgba(0,0,0,.25)}
+.film figcaption{font-family:var(--mono);font-size:13px;color:var(--muted)}
+html{-webkit-text-size-adjust:100%}body{margin:0}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker"><a href="../" style="color:inherit">All guides</a> · the OPUS guide · how the Game Boy film was made</div>
+  <h1>Sketch to <span>Game Boy</span></h1>
+  <p class="lede">A 15-second film of a Game Boy whose cartridge is a projector. Lights off, press A, and the game's blocks fall out of the wall and build a ring around it. Here is the full workflow, with the prompts, so you can make your own.</p>
+  <ul class="tools" aria-label="Tools used">
+    <li>Claude Opus 5.5 (Claude Code)</li><li>Blender (free)</li><li>Python</li><li>HyperFrames (HTML to video)</li><li>ffmpeg</li>
+  </ul>
+</header>
+
+<figure class="film">
+  <video src="assets/gameboy-film.mp4" poster="assets/poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="The finished Game Boy film"></video>
+  <figcaption>The finished film. Tap for sound.</figcaption>
+</figure>
+
+<section>
+  <h2><small>Step 1</small>Break the idea into shots</h2>
+  <p>Start from one sentence ("a Game Boy that projects games on my wall") and a reference film you like. Cut it into 6–8 shots of 1.5–3 seconds. Each shot gets one clear action. This is the shot list for this film:</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Time</th><th>Shot</th><th>Sketch note</th></tr></thead>
+    <tbody>
+      <tr><td class="t">0.0–2.5</td><td>Soft 3D stickers float around a prompt box that types the wish</td><td class="note">icons pop in, cam swings</td></tr>
+      <tr><td class="t">2.5–4.2</td><td>Macro on the A/B buttons, shallow focus, "Generating…" then "Done ✓"</td><td class="note">MACRO, blurry bg</td></tr>
+      <tr><td class="t">4.2–5.4</td><td>The console spins 360° and settles at a 3/4 view</td><td class="note">spin 360, then 3/4</td></tr>
+      <tr><td class="t">5.4–6.8</td><td>It drops onto a marble side table</td><td class="note">drop!</td></tr>
+      <tr><td class="t">6.8–8.3</td><td>Press A, lights off, the projection opens like an old TV</td><td class="note">lights off, press A</td></tr>
+      <tr><td class="t">8.3–11.9</td><td>Blocks leave the projected game and build a ring around the console</td><td class="note">they build a ring</td></tr>
+      <tr><td class="t">11.9–15.0</td><td>A glowing heart closes the ring: CLEAR!, glow wave, two heartbeats</td><td class="note">heart closes it</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><small>Step 2</small>One sketch per shot</h2>
+  <p>The sketch is a director's note, not art. Draw the shape of the next moment, arrows for the motion, and one to three handwritten words for the action. If a sketch needs a paragraph to explain, split the shot.</p>
+  <ul class="points">
+    <li>Solid arrows mean motion, a dashed arrow means "this goes there".</li>
+    <li>Write real labels and numbers the shot will show ("CLEAR!", "press A").</li>
+    <li>In the split-screen version, the sketch draws itself with a pen while the 3D shot plays beside it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><small>Step 3</small>Use real assets</h2>
+  <p>Don't model the hero object from cubes; it always looks like a toy. Download a well-made model with a licence that allows your use, and credit the creator. Furniture, textures and studio lighting (HDRIs) are free under CC0 from Poly Haven.</p>
+  <div class="screen"><p>Rule of thumb: CC0 = use anywhere. CC BY = credit the creator. CC BY-NC = credit, and no paid or client work.</p></div>
+</section>
+
+<section>
+  <h2><small>Step 4</small>Let Claude build the scene in Blender</h2>
+  <p>Claude writes one Python script that builds the whole film: imports the models, sets lights and a camera per shot, keys every move, and renders with Cycles. You run it headless (<code>blender -b -P scene.py</code>) and look at test frames, then give notes.</p>
+  <div class="prompt"><div class="prompt-head"><span>Prompt · build the scene</span><button class="copy" type="button" data-copy="p1">Copy</button></div>
+<pre id="p1">Build a Blender 5 Python script that renders a 15 s, 30 fps, 9:16 film (720x1280 for tests).
+Import [model.glb] as the hero, real scale. Two sets: a light studio cyc and a dark room with a round marble side table (Poly Haven).
+One camera per shot, switched with timeline markers. Shots: [paste your shot list].
+Keep two copies of the hero (one per set) and switch them with constant hide_render keys, so cuts have no motion-blur streaks.
+Cycles GPU, 48 samples, OptiX denoise, motion blur on, AgX. Add --frames and --samples flags so I can render test frames.</pre></div>
+</section>
+
+<section>
+  <h2><small>Step 5</small>Put a real game on the screen</h2>
+  <p>The game is drawn frame by frame in Python at the Game Boy's own resolution, 160×144, in its four greens (#0F380F, #306230, #8BAC0F, #9BBC0F). The same image sequence feeds the console screen and the wall projection, so they always match. The blocks that fly out start exactly where they were drawn on the wall.</p>
+</section>
+
+<section>
+  <h2><small>Step 6</small>Check the physics frame by frame</h2>
+  <p>The first versions looked fine at a glance and were wrong up close: the console floated 2 mm above the table, blocks sank up to 20 mm into it, and one flew through the console. Have Claude measure every frame before the final render.</p>
+  <div class="prompt"><div class="prompt-head"><span>Prompt · contact audit</span><button class="copy" type="button" data-copy="p2">Copy</button></div>
+<pre id="p2">Write an audit script I run after the scene script with --norender. For every frame:
+- raycast the table top and report each resting object's lowest point vs the surface in mm,
+- test every pair of blocks, and each block vs the console, for overlap with BVH trees,
+- flag anything flying through the console.
+Then fix the scene until every resting object is at 0.0 mm and there are zero overlaps.</pre></div>
+  <div class="check">
+    <b>0.0 mm</b><span>Every block, the heart and the console touch the table exactly.</span>
+    <b>0 overlaps</b><span>Blocks keep a gap from each other and the console, in flight and at rest.</span>
+    <b>Flat bottoms</b><span>Each block lands on its widest side, so it could really stand there.</span>
+  </div>
+</section>
+
+<section>
+  <h2><small>Step 7</small>Overlays and the sketch card</h2>
+  <p>The prompt box, the "Generating…" pill and the self-drawing sketch card are HTML, animated with a function of time and rendered to MP4 with HyperFrames. Text stays sharp, and the Blender film plays underneath as a video.</p>
+</section>
+
+<section>
+  <h2><small>Step 8</small>Sound that belongs to the world</h2>
+  <ul class="points">
+    <li>Every effect is 8-bit: arcade pops, retro clicks, block hits, a coin sound for the heart.</li>
+    <li>The music is an original chiptune made from square waves and noise in code, with the beat hitting when the console lands and silence when the lights go off.</li>
+    <li>One sound per visual event, placed a frame before it, mixed to about −14 LUFS.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><small>Step 9</small>Thumbnails per platform</h2>
+  <ul class="points">
+    <li>Instagram Reel cover 1080×1920, with the key content inside the centre 1080×1440 the grid shows.</li>
+    <li>X 1920×1080. Without Premium, put the cover as the first second of the video so it becomes the thumbnail.</li>
+    <li>LinkedIn 1080×1350.</li>
+  </ul>
+  <div class="prompt"><div class="prompt-head"><span>Prompt · start your own</span><button class="copy" type="button" data-copy="p3">Copy</button></div>
+<pre id="p3">I want a 15-second 3D product film in the "sketch to 3D" format.
+Idea: [one sentence]. Hero object: [what it is].
+Make a 7-shot list with a director's sketch note for each shot, find a licensed model and CC0 assets,
+build the scene in Blender with Python, audit contacts frame by frame, and give me the split-screen and solo versions.</pre></div>
+</section>
+
+<footer>
+  <span>Made by Fardeen (@editsbyfardeen) with Claude Opus 5.5.</span>
+  <span>3D model in the film: "Nintendo Game Boy (Original 1989)" by Lokeig on Sketchfab, CC BY-NC 4.0. Table, textures and lighting: Poly Haven (CC0). Game Boy is a trademark of Nintendo; this is a fan concept.</span>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var el = document.getElementById(b.dataset.copy), txt = el.textContent;
+    function done(ok) { b.textContent = ok ? 'Copied' : 'Select + copy'; setTimeout(function () { b.textContent = 'Copy'; }, 1800); }
+    function fallback() { var r = document.createRange(); r.selectNodeContents(el); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); done(false); }
+    try { navigator.clipboard.writeText(txt).then(function () { done(true); }, fallback); } catch (e) { fallback(); }
+  });
+});
+</script>
+
+</body>
+</html>
